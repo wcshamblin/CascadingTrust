@@ -6,11 +6,11 @@ Since the frontend is being built before the backend, use dummy API calls to sim
 ## Frontend
 - The frontend will be built with React. The website will have a dark theme.
 
-[ ] Password entry page
+[x] Password entry page
 
   - This is the main page of the website, seen by returning users or users who have already accepted an invite, or people who have not accepted an invite yet.
   - This should be a simple page with a form that has a password entry field, nothing else (no buttons, no links, no text, nothing else.) The entry field should be centered in the page. The password in the entry field will be hidden and displayed as asterisks. No password reveal button.
-  - Once the password is submitted, a request will be made to the backend to validate the password. This process will take 2 seconds to complete (on the backend, a timer will be started and the request will be blocked for 2 seconds.) so that the user cannot submit the password too quickly. 
+  - Once the password is submitted, a request will be made to the backend to validate the password. This process will take 2 seconds to complete (on the backend, a timer will be started and the request will be blocked for 2 seconds.) so that the user cannot submit the password too quickly.
   - When the password is submitted the page will display a simple countdown timer of 2 seconds. If the password is valid, the user will be redirected to the next page. If the password is invalid, the input field will be cleared and highlighted in red.
   - If the password is valid, the user will be redirected to the website.
   
@@ -29,9 +29,36 @@ Since the frontend is being built before the backend, use dummy API calls to sim
   - You will also be able to edit an invite (change the password it is linked to, change the number of uses it has, etc.)
 
 ## Backend
-  
 
+The backend will be built with Python, FastAPI, and SQLite. Make sure you are using the latest stable version of FastAPI and SQLite. Create a new virtual environment for the backend and install the dependencies.
 
+[x] Database creation
+  - The database will be an sqlite database called tree.db in backend/db/tree.db. Use WAL mode for the database.
+  - The Python code will create the database and the tables if they do not exist.
+  - The database will use a single table to represent both passwords and invites as nodes in a hierarchical tree structure:
+    - nodes table:
+      - id: INTEGER PRIMARY KEY AUTOINCREMENT
+      - node_type: TEXT NOT NULL CHECK (node_type IN ('password', 'invite'))
+      - value: TEXT NOT NULL (stores either password or invite code)
+      - redirect_url: TEXT NOT NULL (URL to redirect to when password/invite is used)
+      - parent_id: INTEGER (NULL for root passwords, references parent node for invites)
+      - uses: INTEGER DEFAULT 0
+      - max_uses: INTEGER (optional: limit how many times this can be used)
+      - is_active: BOOLEAN DEFAULT TRUE
+      - expires_at: DATETIME (optional: when this node expires and becomes invalid)
+      - created_at: DATETIME DEFAULT CURRENT_TIMESTAMP
+      - updated_at: DATETIME DEFAULT CURRENT_TIMESTAMP
+      - FOREIGN KEY (parent_id) REFERENCES nodes(id) ON DELETE CASCADE
+    - Indexes:
+      - CREATE INDEX idx_parent_id ON nodes(parent_id)
+      - CREATE INDEX idx_node_type ON nodes(node_type)
+
+[x] Password validation
+  - This will be a simple API endpoint that will validate a password and return the redirect URL to the next page.
+  - The endpoint will be /api/validate-password and will accept a POST request with a password in the body.
+  - The backend will read from the sqlite database, looking for a node with the value of the password and node_type of 'password'.
+  - If the node is found and is active (and not expired), the endpoint will return a JSON object with the redirect URL from the database.
+  - If the node is not found, the endpoint will return a 403 Forbidden response.
 
 ## Future functionality
 

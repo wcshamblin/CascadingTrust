@@ -1,103 +1,265 @@
-import Image from "next/image";
+"use client";
+
+import { useState, FormEvent, ChangeEvent, useEffect, useRef } from "react";
+import { validatePassword } from "../../services/api.service";
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [password, setPassword] = useState("");
+  const [displayValue, setDisplayValue] = useState("");
+  const [isValidating, setIsValidating] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [validationState, setValidationState] = useState<"error" | "success" | null>(null);
+  const [showCursor, setShowCursor] = useState(true);
+  const [shouldResetOnNextInput, setShouldResetOnNextInput] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const errorTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const textContainerRef = useRef<HTMLDivElement>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  // Blinking cursor effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setShowCursor((prev) => !prev);
+    }, 530); // Blink every 530ms
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Cleanup error timer on unmount
+  useEffect(() => {
+    return () => {
+      if (errorTimerRef.current) {
+        clearTimeout(errorTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Refocus input when countdown ends
+  useEffect(() => {
+    if (countdown === null && !isValidating) {
+      inputRef.current?.focus();
+    }
+  }, [countdown, isValidating]);
+
+  // Auto-scroll to show the end of the password (most recent characters)
+  useEffect(() => {
+    if (textContainerRef.current) {
+      textContainerRef.current.scrollLeft = textContainerRef.current.scrollWidth;
+    }
+  }, [displayValue]);
+
+  // Real API call to backend validation endpoint using the service layer
+  const validatePasswordAPI = async (pwd: string): Promise<{ isValid: boolean; redirectUrl?: string }> => {
+    const { data, error } = await validatePassword(pwd);
+    
+    if (error) {
+      console.error("Password validation error:", error.message);
+      return { isValid: false };
+    }
+    
+    if (data) {
+      return { isValid: true, redirectUrl: data.redirect_url };
+    }
+    
+    return { isValid: false };
+  };
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const newDisplayValue = e.target.value;
+    const oldLength = displayValue.length;
+    const newLength = newDisplayValue.length;
+
+    // If we should reset on next input
+    if (shouldResetOnNextInput) {
+      setShouldResetOnNextInput(false);
+      
+      // If backspace was pressed (length decreased), clear everything
+      if (newLength < oldLength) {
+        setPassword("");
+        setDisplayValue("");
+      } else {
+        // Get the newly typed character (should be the last char in the input)
+        const newChar = newDisplayValue.slice(-1);
+        setPassword(newChar);
+        setDisplayValue("*".repeat(newChar.length));
+      }
+    } else {
+      // Calculate the actual password based on the change
+      let newPassword = password;
+      
+      if (newLength > oldLength) {
+        // Characters were added - extract the newly typed characters
+        const addedChars = newDisplayValue.slice(oldLength);
+        newPassword = password + addedChars;
+      } else if (newLength < oldLength) {
+        // Characters were removed (backspace/delete)
+        newPassword = password.slice(0, newLength);
+      }
+      
+      setPassword(newPassword);
+      setDisplayValue("*".repeat(newLength));
+    }
+
+    setValidationState(null);
+
+    // Clear any existing error timer
+    if (errorTimerRef.current) {
+      clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = null;
+    }
+  };
+
+  const handleBlur = () => {
+    // Immediately refocus the input if it loses focus
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+
+    if (!password || isValidating) return;
+
+    setIsValidating(true);
+
+    // Clear any existing error timer
+    if (errorTimerRef.current) {
+      clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = null;
+    }
+
+    // Start countdown (2 seconds)
+    setCountdown(2);
+    let countdownComplete = false;
+    const countdownInterval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(countdownInterval);
+          countdownComplete = true;
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    try {
+      // Make API call
+      const result = await validatePasswordAPI(password);
+
+      if (result.isValid && result.redirectUrl) {
+        // Success - redirect immediately
+        clearInterval(countdownInterval);
+        setCountdown(null);
+        setValidationState("success");
+        console.log("Password valid - redirecting to:", result.redirectUrl);
+        // Redirect immediately
+        window.location.href = result.redirectUrl;
+        return; // Exit early, no need to continue
+      } else {
+        // Error - wait for countdown to complete before showing error
+        const waitForCountdown = new Promise<void>((resolve) => {
+          const checkInterval = setInterval(() => {
+            if (countdownComplete) {
+              clearInterval(checkInterval);
+              resolve();
+            }
+          }, 100);
+        });
+
+        await waitForCountdown;
+
+        // Mark to reset on next input instead of clearing immediately
+        setShouldResetOnNextInput(true);
+        setValidationState("error");
+
+        // Clear error state after 2 seconds
+        errorTimerRef.current = setTimeout(() => {
+          setValidationState(null);
+          errorTimerRef.current = null;
+        }, 2000);
+      }
+    } catch (error) {
+      // Wait for countdown to complete before showing error
+      const waitForCountdown = new Promise<void>((resolve) => {
+        const checkInterval = setInterval(() => {
+          if (countdownComplete) {
+            clearInterval(checkInterval);
+            resolve();
+          }
+        }, 100);
+      });
+
+      await waitForCountdown;
+
+      // Mark to reset on next input instead of clearing immediately
+      setShouldResetOnNextInput(true);
+      setValidationState("error");
+
+      // Clear error state after 2 seconds
+      errorTimerRef.current = setTimeout(() => {
+        setValidationState(null);
+        errorTimerRef.current = null;
+      }, 2000);
+    } finally {
+      clearInterval(countdownInterval);
+      setCountdown(null);
+      setIsValidating(false);
+      // Immediately refocus the input field
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="w-full max-w-md px-4">
+        <form onSubmit={handleSubmit} className="relative">
+          {/* Countdown display - positioned absolutely above the input */}
+          {countdown !== null && (
+            <div className="absolute left-1/2 -translate-x-1/2 -top-20 flex items-center justify-center">
+              <span className="text-4xl font-bold text-foreground/50">
+                {countdown}
+              </span>
+            </div>
+          )}
+          
+          <div className="relative">
+            <input
+              ref={inputRef}
+              type="text"
+              value={displayValue}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              disabled={countdown !== null}
+              className={`password-input w-full px-6 py-4 text-3xl bg-transparent border-[3px] text-center text-foreground focus:outline-none transition-colors overflow-hidden ${
+                validationState === "error"
+                  ? "border-red-500 focus:border-red-500"
+                  : validationState === "success"
+                  ? "border-green-500 focus:border-green-500"
+                  : countdown !== null || isValidating
+                  ? "border-gray-400 focus:border-gray-400"
+                  : "border-white focus:border-white"
+              } ${countdown !== null ? "opacity-50 cursor-not-allowed" : ""}`}
+              autoFocus
+              autoComplete="off"
+              style={{ textOverflow: 'clip' }}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden px-6">
+              <div ref={textContainerRef} className="relative inline-flex items-center justify-end text-3xl max-w-full overflow-x-auto scrollbar-hide">
+                <span className="text-foreground font-mono whitespace-nowrap">
+                  {displayValue}
+                </span>
+                <span
+                  className={`inline-block w-[0.51em] h-[1.02em] ml-[1px] transition-opacity flex-shrink-0 ${
+                    countdown === null && showCursor ? "bg-foreground opacity-100" : "opacity-0"
+                  }`}
+                />
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
