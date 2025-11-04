@@ -54,3 +54,114 @@ export const checkAuthentication = async () => {
     isAuthenticated: false,
   };
 };
+
+// Admin API calls
+
+export interface Node {
+  id: number;
+  node_type: 'password' | 'invite';
+  value: string;
+  redirect_url: string;
+  parent_id: number | null;
+  uses: number;
+  max_uses: number | null;
+  is_active: boolean;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const listNodes = async () => {
+  const config = {
+    url: `${apiServerUrl}/api/admin/nodes`,
+    method: "GET",
+  };
+
+  const { data, error } = await callExternalApi({ config });
+
+  return {
+    data: data || null,
+    error,
+  };
+};
+
+export interface CreateNodeRequest {
+  node_type: 'password' | 'invite';
+  value: string;
+  redirect_url: string;
+  parent_id?: number | null;
+  max_uses?: number | null;
+  expires_at?: string | null;
+}
+
+export const createNode = async (request: CreateNodeRequest) => {
+  const config = {
+    url: `${apiServerUrl}/api/admin/nodes`,
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    data: request,
+  };
+
+  const { data, error } = await callExternalApi({ config });
+
+  return {
+    data: data || null,
+    error,
+  };
+};
+
+export interface UpdateNodeRequest {
+  redirect_url?: string;
+  parent_id?: number | null;
+  max_uses?: number | null;
+  is_active?: boolean;
+  expires_at?: string | null;
+}
+
+export const updateNode = async (nodeId: number, request: UpdateNodeRequest) => {
+  const config = {
+    url: `${apiServerUrl}/api/admin/nodes/${nodeId}`,
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+    },
+    data: request,
+  };
+
+  const { data, error } = await callExternalApi({ config });
+
+  return {
+    data: data || null,
+    error,
+  };
+};
+
+export const revokeNode = async (nodeId: number) => {
+  const config = {
+    url: `${apiServerUrl}/api/admin/nodes/${nodeId}/revoke`,
+    method: "POST",
+  };
+
+  const { data, error } = await callExternalApi({ config });
+
+  return {
+    data: data || null,
+    error,
+  };
+};
+
+export const deleteNode = async (nodeId: number) => {
+  const config = {
+    url: `${apiServerUrl}/api/admin/nodes/${nodeId}`,
+    method: "DELETE",
+  };
+
+  const { data, error } = await callExternalApi({ config });
+
+  return {
+    data: data || null,
+    error,
+  };
+};

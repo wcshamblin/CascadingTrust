@@ -20,7 +20,7 @@ Since the frontend is being built before the backend, use dummy API calls to sim
   - This page is seen by users who have been linked an invite to the website by someone who is already has a password and access to the website. This page is used to accept the invite and gain access to the website.
   - The page will display the password alongside instructions to write it down, and never link the actual host website, but generate an invite code using the invite generation widget on the host website.
 
-[ ] Admin panel
+[x] Admin panel
 
   - This will only be accessible through localhost:3000/admin.
   - The panel will display a list of all the passwords created and invites generated.
