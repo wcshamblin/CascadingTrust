@@ -2,12 +2,12 @@ aiosqlite==0.21.0
 annotated-doc==0.0.3
 annotated-types==0.7.0
 anyio==4.11.0
-click==8.3.0
+click==8.1.8
 fastapi==0.120.4
 h11==0.16.0
 httptools==0.7.1
 idna==3.11
-iniconfig==2.3.0
+iniconfig==2.1.0
 packaging==25.0
 pluggy==1.6.0
 pydantic==2.12.3
