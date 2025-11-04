@@ -21,3 +21,36 @@ export const validatePassword = async (password: string) => {
     error,
   };
 };
+
+/**
+ * Check if the user has a valid JWT authentication token.
+ * This checks the auth_token cookie that was set during password validation.
+ * 
+ * @returns {Promise<{isAuthenticated: boolean, nodeId?: number, error?: any}>}
+ */
+export const checkAuthentication = async () => {
+  const config = {
+    url: `${apiServerUrl}/api/validate-jwt-cookie`,
+    method: "GET",
+  };
+
+  const { data, error } = await callExternalApi({ config });
+
+  if (error) {
+    return {
+      isAuthenticated: false,
+      error,
+    };
+  }
+
+  if (data && data.valid) {
+    return {
+      isAuthenticated: true,
+      nodeId: data.node_id,
+    };
+  }
+
+  return {
+    isAuthenticated: false,
+  };
+};

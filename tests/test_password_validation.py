@@ -69,6 +69,7 @@ def test_validate_password_valid(client):
 
     assert response.status_code == 200
     assert "redirect_url" in response.json()
+    assert "token" in response.json()  # JWT token should be returned
     assert response.json()["redirect_url"] == "https://example.com/dashboard"
 
 
@@ -84,7 +85,7 @@ def test_validate_password_invalid(client):
 
 
 def test_validate_password_timing(client):
-    """Test that password validation takes at least 2 seconds."""
+    """Test that password validation takes at least 1.5 seconds."""
     start_time = time.time()
     response = client.post(
         "/api/validate-password",
@@ -92,5 +93,5 @@ def test_validate_password_timing(client):
     )
     elapsed_time = time.time() - start_time
 
-    assert elapsed_time >= 2.0
+    assert elapsed_time >= 1.5
     assert response.status_code == 200

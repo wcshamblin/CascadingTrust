@@ -48,7 +48,7 @@ export default function Home() {
   }, [displayValue]);
 
   // Real API call to backend validation endpoint using the service layer
-  const validatePasswordAPI = async (pwd: string): Promise<{ isValid: boolean; redirectUrl?: string }> => {
+  const validatePasswordAPI = async (pwd: string): Promise<{ isValid: boolean; redirectUrl?: string; token?: string }> => {
     const { data, error } = await validatePassword(pwd);
     
     if (error) {
@@ -57,7 +57,11 @@ export default function Home() {
     }
     
     if (data) {
-      return { isValid: true, redirectUrl: data.redirect_url };
+      return { 
+        isValid: true, 
+        redirectUrl: data.redirect_url,
+        token: data.token  // Include JWT token for cross-domain redirect
+      };
     }
     
     return { isValid: false };
@@ -152,8 +156,15 @@ export default function Home() {
         setCountdown(null);
         setValidationState("success");
         console.log("Password valid - redirecting to:", result.redirectUrl);
-        // Redirect immediately
-        window.location.href = result.redirectUrl;
+        
+        // Redirect with JWT token in URL fragment for cross-domain access
+        // The destination site can read it via window.location.hash
+        const redirectUrl = new URL(result.redirectUrl);
+        if (result.token) {
+          redirectUrl.hash = `token=${result.token}`;
+        }
+        
+        window.location.href = redirectUrl.toString();
         return; // Exit early, no need to continue
       } else {
         // Error - wait for countdown to complete before showing error

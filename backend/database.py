@@ -77,6 +77,31 @@ async def init_database() -> None:
             """)
             print("Added redirect_url column to existing nodes table")
 
+        # Create the jwt_tokens table
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS jwt_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                token TEXT NOT NULL,
+                node_id INTEGER NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                expires_at DATETIME NOT NULL,
+                FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
+            )
+        """)
+
+        # Create indexes for jwt_tokens table
+        await db.execute("""
+            CREATE INDEX IF NOT EXISTS idx_jwt_tokens_node_id ON jwt_tokens(node_id)
+        """)
+
+        await db.execute("""
+            CREATE INDEX IF NOT EXISTS idx_jwt_tokens_expires_at ON jwt_tokens(expires_at)
+        """)
+
+        await db.execute("""
+            CREATE INDEX IF NOT EXISTS idx_jwt_tokens_token ON jwt_tokens(token)
+        """)
+
         await db.commit()
 
         print(f"Database initialized successfully at {DATABASE_PATH}")

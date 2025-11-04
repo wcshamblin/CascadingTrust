@@ -15,7 +15,13 @@ export const callExternalApi = async <T = any>(
   options: CallExternalApiOptions
 ): Promise<ApiResponse<T>> => {
   try {
-    const response = await axios(options.config);
+    // Enable credentials to allow cookies to be sent and received
+    const configWithCredentials = {
+      ...options.config,
+      withCredentials: true,
+    };
+    
+    const response = await axios(configWithCredentials);
     const { data } = response;
 
     return {

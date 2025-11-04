@@ -60,6 +60,30 @@ The backend will be built with Python, FastAPI, and SQLite. Make sure you are us
   - If the node is found and is active (and not expired), the endpoint will return a JSON object with the redirect URL from the database.
   - If the node is not found, the endpoint will return a 403 Forbidden response.
 
+[x] JWT authentication
+  - Once a user is authenticated, a JWT will be generated and stored in the database. The user will be given a JWT token to use to access the website.
+  - Once the user is redirected to the next page, on visit, the host will check with the backend to see if the JWT is valid.
+  - This way, the user can only access the website if they have a valid JWT.
+  - The JWT will be stored in the database in a jwt_tokens table:
+    - id: INTEGER PRIMARY KEY AUTOINCREMENT
+    - token: TEXT NOT NULL
+    - node_id: INTEGER NOT NULL REFERENCES nodes(id)
+    - created_at: DATETIME DEFAULT CURRENT_TIMESTAMP
+    - expires_at: DATETIME NOT NULL
+    - FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
+    - Indexes:
+      - CREATE INDEX idx_jwt_tokens_node_id ON jwt_tokens(node_id)
+      - CREATE INDEX idx_jwt_tokens_expires_at ON jwt_tokens(expires_at)
+    - The JWT will be generated using the PyJWT library.
+    - The JWT will be stored in a cookie on the user's browser.
+    - The JWT will be checked on every request to the website.
+    - If the JWT is not valid, the user will be redirected to the login page.
+    - If the JWT is valid, the user will immediately be redirected to the next page.
+    - The JWT will expire after 7 days.
+    - There will be two endpoints to handle JWT authentication:
+      - /api/generate-jwt will generate a JWT token for a given node_id.
+      - /api/validate-jwt will validate a JWT token and return 200 OK or 401 Unauthorized.
+
 ## Future functionality
 
   [ ] Network graph
