@@ -28,12 +28,16 @@ async def init_database() -> None:
         await db.execute("PRAGMA foreign_keys=ON")
 
         # Create the nodes table
+        # Hierarchy: site -> password -> invite
+        # - site: root node, has redirect_url, no parent_id
+        # - password: child of site, has value (password string)
+        # - invite: child of password, has value (invite code)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS nodes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                node_type TEXT NOT NULL CHECK (node_type IN ('password', 'invite')),
+                node_type TEXT NOT NULL CHECK (node_type IN ('site', 'password', 'invite')),
                 value TEXT NOT NULL,
-                redirect_url TEXT NOT NULL,
+                redirect_url TEXT,
                 parent_id INTEGER,
                 uses INTEGER DEFAULT 0,
                 max_uses INTEGER,
@@ -77,15 +81,31 @@ async def init_database() -> None:
             """)
             print("Added redirect_url column to existing nodes table")
 
+        # Migration: Add site_id column to jwt_tokens if it doesn't exist
+        cursor = await db.execute("PRAGMA table_info(jwt_tokens)")
+        jwt_columns = await cursor.fetchall()
+        jwt_column_names = [col[1] for col in jwt_columns]
+        
+        if jwt_columns and 'site_id' not in jwt_column_names:
+            # Add site_id column - existing tokens will need to be regenerated
+            await db.execute("""
+                ALTER TABLE jwt_tokens ADD COLUMN site_id INTEGER
+            """)
+            print("Added site_id column to jwt_tokens table")
+            print("WARNING: Existing tokens lack site_id and should be regenerated")
+
         # Create the jwt_tokens table
+        # site_id is required for site-scoped token validation
         await db.execute("""
             CREATE TABLE IF NOT EXISTS jwt_tokens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 token TEXT NOT NULL,
                 node_id INTEGER NOT NULL,
+                site_id INTEGER NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 expires_at DATETIME NOT NULL,
-                FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
+                FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE,
+                FOREIGN KEY (site_id) REFERENCES nodes(id) ON DELETE CASCADE
             )
         """)
 
@@ -102,6 +122,10 @@ async def init_database() -> None:
             CREATE INDEX IF NOT EXISTS idx_jwt_tokens_token ON jwt_tokens(token)
         """)
 
+        await db.execute("""
+            CREATE INDEX IF NOT EXISTS idx_jwt_tokens_site_id ON jwt_tokens(site_id)
+        """)
+
         await db.commit()
 
         print(f"Database initialized successfully at {DATABASE_PATH}")
@@ -112,3 +136,34 @@ async def init_database() -> None:
 async def close_db_connection(db: aiosqlite.Connection) -> None:
     """Close a database connection."""
     await db.close()
+
+
+async def get_site_id_for_node(db: aiosqlite.Connection, node_id: int) -> Optional[int]:
+    """
+    Traverse up the tree from any node to find the root site's ID.
+    
+    Hierarchy: site -> password -> invite
+    Returns the site_id or None if not found.
+    """
+    current_id = node_id
+    
+    while current_id is not None:
+        cursor = await db.execute(
+            """
+            SELECT id, node_type, parent_id
+            FROM nodes
+            WHERE id = ?
+            """,
+            (current_id,)
+        )
+        node = await cursor.fetchone()
+        
+        if not node:
+            return None
+            
+        if node['node_type'] == 'site':
+            return node['id']
+            
+        current_id = node['parent_id']
+    
+    return None

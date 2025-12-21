@@ -15,12 +15,13 @@ Since the frontend is being built before the backend, use dummy API calls to sim
   - If the password is valid, the user will be redirected to the website.
   
 
-[ ] Invite acceptance page
+[x] Invite acceptance page
   
   - This page is seen by users who have been linked an invite to the website by someone who is already has a password and access to the website. This page is used to accept the invite and gain access to the website.
   - The page will display the password alongside instructions to write it down, and never link the actual host website, but generate an invite code using the invite generation widget on the host website.
+  - The node graph will show to the right of the password and instructions, showing a very simplified / stripped down version of the admin panel's node graph.
 
-[ ] Admin panel
+[x] Admin panel
 
   - This will only be accessible through localhost:3000/admin.
   - The panel will display a list of all the passwords created and invites generated.
@@ -84,9 +85,13 @@ The backend will be built with Python, FastAPI, and SQLite. Make sure you are us
       - /api/generate-jwt will generate a JWT token for a given node_id.
       - /api/validate-jwt will validate a JWT token and return 200 OK or 401 Unauthorized.
 
+[x] Invite generation
+  - The API will have an endpoint to allow users on the website to generate new invite links.
+  - POST /api/generate-invite - accepts JWT auth (cookie or Bearer token), creates invite as child of authenticated node
+
 ## Future functionality
 
-  [ ] Network graph
+  [x] Network graph
     - Add a network graph page to both the admin panel and the invite acceptance page. 
     - This graph will show the relationships between the invites and passwords. (All invites generated under a password will be shown as children of that password, and if someone generates an invite, it will be shown as a child of the invite that generated it. These invites nodes will show as smaller than the password node at the top of the tree.)
     - On the invite acceptance page, the graph will be showed beside the password, with the node the user is currently on highlighted. This won't be the exact same as the admin panel graph since it will be view only and not editable.
