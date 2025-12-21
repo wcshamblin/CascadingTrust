@@ -78,17 +78,53 @@ async def client(test_db):
 
 
 @pytest.fixture(scope="function")
-async def sample_password_node(test_db):
+async def sample_site_node(test_db):
     """
-    Creates a sample password node in the database for testing.
+    Creates a sample site node in the database for testing.
+    Site nodes are root nodes in the hierarchy.
     """
-    # Insert a sample password node
+    # Insert a sample site node
     await test_db.execute(
         """
         INSERT INTO nodes (node_type, value, redirect_url, is_active)
         VALUES (?, ?, ?, ?)
         """,
-        ("password", "test-password-123", "https://example.com/dashboard", True)
+        ("site", "test-site", "https://example.com/dashboard", True)
+    )
+    await test_db.commit()
+
+    # Retrieve the created node
+    cursor = await test_db.execute(
+        "SELECT * FROM nodes WHERE value = ?",
+        ("test-site",)
+    )
+    node = await cursor.fetchone()
+
+    # Convert to dict for easier access
+    return {
+        "id": node["id"],
+        "node_type": node["node_type"],
+        "value": node["value"],
+        "redirect_url": node["redirect_url"],
+        "is_active": node["is_active"],
+    }
+
+
+@pytest.fixture(scope="function")
+async def sample_password_node(test_db, sample_site_node):
+    """
+    Creates a sample password node in the database for testing.
+    Password nodes must have a parent site node for site-scoped tokens.
+    """
+    site_id = sample_site_node["id"]
+    
+    # Insert a sample password node with parent site
+    await test_db.execute(
+        """
+        INSERT INTO nodes (node_type, value, parent_id, is_active)
+        VALUES (?, ?, ?, ?)
+        """,
+        ("password", "test-password-123", site_id, True)
     )
     await test_db.commit()
 
@@ -104,7 +140,9 @@ async def sample_password_node(test_db):
         "id": node["id"],
         "node_type": node["node_type"],
         "value": node["value"],
-        "redirect_url": node["redirect_url"],
+        "redirect_url": sample_site_node["redirect_url"],  # Redirect URL comes from parent site
+        "parent_id": node["parent_id"],
+        "site_id": site_id,
         "is_active": node["is_active"],
     }
 

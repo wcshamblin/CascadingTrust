@@ -14,32 +14,50 @@ from database import get_db_connection, init_database
 
 @pytest.fixture(scope="module", autouse=True)
 def setup_database():
-    """Initialize database and add test data."""
+    """Initialize database and add test data with proper site -> password hierarchy."""
     # Run async setup synchronously using a helper
     import asyncio
 
     async def async_setup():
         await init_database()
 
-        # Add a test password node
+        # First create a site node (root node), then a password under it
         db = await get_db_connection()
         try:
+            # Create the parent site node
             await db.execute(
                 """
                 INSERT INTO nodes (node_type, value, redirect_url, is_active)
-                VALUES ('password', 'testpassword123', 'https://example.com/dashboard', TRUE)
+                VALUES ('site', 'test-site-for-password', 'https://example.com/dashboard', TRUE)
                 """
+            )
+            await db.commit()
+            
+            # Get the site_id
+            cursor = await db.execute(
+                "SELECT id FROM nodes WHERE value = 'test-site-for-password'"
+            )
+            site = await cursor.fetchone()
+            site_id = site['id']
+            
+            # Create the password node under the site
+            await db.execute(
+                """
+                INSERT INTO nodes (node_type, value, parent_id, is_active)
+                VALUES ('password', 'testpassword123', ?, TRUE)
+                """,
+                (site_id,)
             )
             await db.commit()
         finally:
             await db.close()
 
     async def async_cleanup():
-        # Cleanup: Remove test password
+        # Cleanup: Remove test site (will cascade delete password)
         db = await get_db_connection()
         try:
             await db.execute(
-                "DELETE FROM nodes WHERE value = 'testpassword123'"
+                "DELETE FROM nodes WHERE value = 'test-site-for-password'"
             )
             await db.commit()
         finally:
