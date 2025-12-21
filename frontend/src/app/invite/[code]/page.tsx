@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { validateInvite, InviteValidationResponse } from "../../../../services/api.service";
 import TreeGraph from "./TreeGraph";
 
@@ -82,12 +83,12 @@ export default function InvitePage() {
             </p>
           </div>
 
-          <a
+          <Link
             href="/"
             className="text-foreground/50 hover:text-foreground text-sm underline underline-offset-4 transition-colors"
           >
             Already have a password?
-          </a>
+          </Link>
         </div>
       </div>
     );
