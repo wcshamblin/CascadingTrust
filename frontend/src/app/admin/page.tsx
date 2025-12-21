@@ -117,7 +117,7 @@ export default function AdminPanel() {
   const openEditModal = (node: Node) => {
     setSelectedNode(node);
     setEditForm({
-      redirect_url: node.redirect_url,
+      redirect_url: node.redirect_url ?? undefined,
       parent_id: node.parent_id,
       max_uses: node.max_uses,
       is_active: node.is_active,
