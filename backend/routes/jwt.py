@@ -7,10 +7,10 @@ import jwt
 # Handle imports whether running from backend/ or project root
 try:
     from database import get_db_connection, get_site_id_for_node
-    from config import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRATION_DAYS
+    from config import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRATION_DAYS, COOKIE_SECURE, COOKIE_SAMESITE
 except ModuleNotFoundError:
     from backend.database import get_db_connection, get_site_id_for_node
-    from backend.config import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRATION_DAYS
+    from backend.config import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRATION_DAYS, COOKIE_SECURE, COOKIE_SAMESITE
 
 
 router = APIRouter(prefix="/api", tags=["jwt"])
@@ -106,8 +106,8 @@ async def generate_jwt(request: GenerateJWTRequest, response: Response):
             key="auth_token",
             value=token,
             httponly=True,
-            secure=False,  # Set to True in production with HTTPS
-            samesite="lax",
+            secure=COOKIE_SECURE,  # True in production (HTTPS only)
+            samesite=COOKIE_SAMESITE,
             max_age=JWT_EXPIRATION_DAYS * 24 * 60 * 60,  # 7 days in seconds
         )
         

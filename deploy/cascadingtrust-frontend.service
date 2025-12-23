@@ -1,0 +1,36 @@
+[Unit]
+Description=CascadingTrust Frontend (Next.js)
+After=network.target cascadingtrust-api.service
+
+[Service]
+Type=exec
+User=admin
+Group=admin
+WorkingDirectory=/home/admin/CascadingTrust/frontend
+
+# Environment variables
+EnvironmentFile=/home/admin/CascadingTrust/frontend/.env.local
+
+# Production port
+Environment=PORT=3000
+Environment=NODE_ENV=production
+
+# Start Next.js in production mode
+ExecStart=/usr/bin/npm run start
+
+# Restart configuration
+Restart=always
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cascadingtrust-frontend
+
+[Install]
+WantedBy=multi-user.target
+

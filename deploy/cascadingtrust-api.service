@@ -1,0 +1,45 @@
+[Unit]
+Description=CascadingTrust API Server
+After=network.target
+
+[Service]
+Type=exec
+User=admin
+Group=admin
+WorkingDirectory=/home/admin/CascadingTrust/backend
+
+# Environment variables - these should be set in a separate EnvironmentFile for security
+# Generate JWT_SECRET_KEY with: python3 -c "import secrets; print(secrets.token_urlsafe(64))"
+EnvironmentFile=/home/admin/CascadingTrust/backend/.env
+
+# Production settings
+Environment=PRODUCTION=true
+Environment=WORKERS=4
+
+# Start the API
+ExecStart=/home/admin/CascadingTrust/backend/venv/bin/gunicorn app:app \
+    --workers 4 \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --bind 127.0.0.1:8000 \
+    --access-logfile - \
+    --error-logfile -
+
+# Restart configuration
+Restart=always
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/admin/CascadingTrust/backend/db
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cascadingtrust-api
+
+[Install]
+WantedBy=multi-user.target
+
