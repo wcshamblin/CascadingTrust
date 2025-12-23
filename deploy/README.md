@@ -78,7 +78,37 @@ sudo systemctl reload nginx
 ### 5. Setup SSL with Certbot
 
 ```bash
+# Install certbot if needed
+sudo snap install --classic certbot
+sudo ln -sf /snap/bin/certbot /usr/bin/certbot
+
+# Get SSL certificate (this modifies nginx.conf automatically)
 sudo certbot --nginx -d cascadingtrust.net -d www.cascadingtrust.net
+```
+
+### 6. Post-Certbot Security Hardening
+
+After Certbot runs successfully, add security headers to the HTTPS server block:
+
+```bash
+# Edit the nginx config
+sudo nano /etc/nginx/sites-available/cascadingtrust
+
+# Add these lines inside the HTTPS server block (listen 443 ssl):
+#   add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+#   add_header X-Frame-Options "SAMEORIGIN" always;
+#   add_header X-Content-Type-Options "nosniff" always;
+#   add_header X-XSS-Protection "1; mode=block" always;
+#   add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+# See deploy/nginx-post-certbot.conf for full reference
+
+# Enable rate limiting (optional but recommended)
+sudo cp deploy/rate-limiting.conf /etc/nginx/conf.d/
+# Then uncomment the limit_req lines in nginx config
+
+# Test and reload
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
 ## Management Commands
